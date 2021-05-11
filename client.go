@@ -19,6 +19,7 @@ import (
 var (
 	ErrNotAuthenticated     = errors.New("not authenticated")
 	ErrSubscriptionNotFound = errors.New("subscription not found")
+	ErrEmptyKey             = errors.New("key empty or unset")
 )
 
 type Client struct {
@@ -160,6 +161,10 @@ func (s *Client) GetJSON(key string, dst interface{}) error {
 	})
 	if err != nil {
 		return err
+	}
+
+	if resp.Data == nil || resp.Data.(string) == "" {
+		return ErrEmptyKey
 	}
 
 	return jsoniter.ConfigFastest.UnmarshalFromString(resp.Data.(string), dst)
