@@ -103,6 +103,7 @@ func (s *Client) ConnectToWebsocket() error {
 				if response.RequestID != "" {
 					// We have a request ID, send byte chunk over to channel
 					if chn, ok := s.requests[response.RequestID]; ok {
+						s.Logger.WithField("rid", response.RequestID).Trace("recv response")
 						chn <- msg
 					} else {
 						s.Logger.WithField("rid", response.RequestID).Error("received response for unknown RID")
@@ -113,6 +114,7 @@ func (s *Client) ConnectToWebsocket() error {
 					case "push":
 						var push kv.Push
 						err = jsoniter.ConfigFastest.UnmarshalFromString(msg, &push)
+						s.Logger.WithField("key", push.Key).Trace("recv push")
 						if err != nil {
 							s.Logger.WithError(err).Error("websocket deserialize error")
 							continue
@@ -260,6 +262,10 @@ func (s *Client) makeRequest(request kv.Request) (kv.Response, error) {
 
 	request.RequestID = rid
 	err := s.send(request)
+	s.Logger.WithFields(logrus.Fields{
+		"rid": request.RequestID,
+		"cmd": request.CmdName,
+	}).Trace("sent request")
 	if err != nil {
 		return kv.Response{}, err
 	}
