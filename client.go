@@ -14,7 +14,7 @@ import (
 	cmap "github.com/orcaman/concurrent-map"
 	"github.com/sirupsen/logrus"
 
-	kv "github.com/strimertul/kilovolt/v3"
+	kv "github.com/strimertul/kilovolt/v4"
 )
 
 var (
@@ -23,15 +23,21 @@ var (
 	ErrEmptyKey             = errors.New("key empty or unset")
 )
 
+type KeyValuePair struct {
+	Key   string
+	Value string
+}
+
 type Client struct {
 	Endpoint string
 	Logger   logrus.FieldLogger
 
-	headers       http.Header
-	ws            *websocket.Conn
-	mu            sync.Mutex         // Used to avoid concurrent writes to socket
-	requests      cmap.ConcurrentMap // map[string]chan<- string
-	subscriptions cmap.ConcurrentMap // map[string][]chan<- string
+	headers    http.Header
+	ws         *websocket.Conn
+	mu         sync.Mutex         // Used to avoid concurrent writes to socket
+	requests   cmap.ConcurrentMap // map[string]chan<- string
+	keysubs    cmap.ConcurrentMap // map[string][]chan<- KeyValuePair
+	prefixsubs cmap.ConcurrentMap // map[string][]chan<- KeyValuePair
 }
 
 type ClientOptions struct {
@@ -45,13 +51,14 @@ func NewClient(endpoint string, options ClientOptions) (*Client, error) {
 	}
 
 	client := &Client{
-		Endpoint:      endpoint,
-		Logger:        options.Logger,
-		headers:       options.Headers,
-		ws:            nil,
-		mu:            sync.Mutex{},
-		requests:      cmap.New(), // make(map[string]chan<- string),
-		subscriptions: cmap.New(), // make(map[string][]chan<- string),
+		Endpoint:   endpoint,
+		Logger:     options.Logger,
+		headers:    options.Headers,
+		ws:         nil,
+		mu:         sync.Mutex{},
+		requests:   cmap.New(), // make(map[string]chan<- string),
+		keysubs:    cmap.New(), // make(map[string][]chan<- string),
+		prefixsubs: cmap.New(), // make(map[string][]chan<- string),
 	}
 
 	err := client.ConnectToWebsocket()
@@ -122,10 +129,18 @@ func (s *Client) ConnectToWebsocket() error {
 							s.Logger.WithError(err).Error("websocket deserialize error")
 							continue
 						}
-						// Deliver to subscriptions
-						if subs, ok := s.subscriptions.Get(push.Key); ok {
-							for _, chann := range subs.([]chan string) {
-								chann <- push.NewValue
+						// Deliver to key subscriptions
+						if subs, ok := s.keysubs.Get(push.Key); ok {
+							for _, chann := range subs.([]chan KeyValuePair) {
+								chann <- KeyValuePair{push.Key, push.NewValue}
+							}
+						}
+						// Deliver to prefix subscritpions
+						for kv := range s.prefixsubs.IterBuffered() {
+							if strings.HasPrefix(push.Key, kv.Key) {
+								for _, chann := range kv.Val.([]chan KeyValuePair) {
+									chann <- KeyValuePair{push.Key, push.NewValue}
+								}
 							}
 						}
 
@@ -188,7 +203,7 @@ func (s *Client) SetJSON(key string, data interface{}) error {
 	}
 
 	_, err = s.makeRequest(kv.Request{
-		CmdName: kv.CmdReadKey,
+		CmdName: kv.CmdWriteKey,
 		Data: map[string]interface{}{
 			"key":  key,
 			"data": serialized,
@@ -198,14 +213,17 @@ func (s *Client) SetJSON(key string, data interface{}) error {
 	return err
 }
 
-func (s *Client) Subscribe(key string) (chan string, error) {
-	chn := make(chan string)
+func (s *Client) SubscribeKey(key string) (chan KeyValuePair, error) {
+	chn := make(chan KeyValuePair, 10)
 
-	data, ok := s.subscriptions.Get(key)
-	subs := data.([]chan string)
+	var subs []chan KeyValuePair
+	data, ok := s.keysubs.Get(key)
+	if ok {
+		subs = data.([]chan KeyValuePair)
+	}
 
 	needsAPISubscription := !ok || len(subs) < 1
-	s.subscriptions.Set(key, append(subs, chn))
+	s.keysubs.Set(key, append(subs, chn))
 
 	var err error
 	// If this is the first time we subscribe to this key, ask server to push updates
@@ -221,17 +239,18 @@ func (s *Client) Subscribe(key string) (chan string, error) {
 	return chn, err
 }
 
-func (s *Client) Unsubscribe(key string, chn chan string) error {
-	data, ok := s.subscriptions.Get(key)
+func (s *Client) UnsubscribeKey(key string, chn chan KeyValuePair) error {
+	data, ok := s.keysubs.Get(key)
 	if !ok {
 		return nil
 	}
-	chans := data.([]chan string)
+	chans := data.([]chan KeyValuePair)
 
 	found := false
 	for idx, sub := range chans {
 		if sub == chn {
-			s.subscriptions.Set(key, append(chans[:idx], chans[idx+1:]...))
+			chans = append(chans[:idx], chans[idx+1:]...)
+			s.keysubs.Set(key, chans)
 			found = true
 		}
 	}
@@ -246,6 +265,66 @@ func (s *Client) Unsubscribe(key string, chn chan string) error {
 			CmdName: kv.CmdUnsubscribeKey,
 			Data: map[string]interface{}{
 				"key": key,
+			},
+		})
+		return err
+	}
+
+	return nil
+}
+
+func (s *Client) SubscribePrefix(prefix string) (chan KeyValuePair, error) {
+	chn := make(chan KeyValuePair, 10)
+
+	var subs []chan KeyValuePair
+	data, ok := s.prefixsubs.Get(prefix)
+	if ok {
+		subs = data.([]chan KeyValuePair)
+	}
+
+	needsAPISubscription := !ok || len(subs) < 1
+	s.prefixsubs.Set(prefix, append(subs, chn))
+
+	var err error
+	// If this is the first time we subscribe to this key, ask server to push updates
+	if needsAPISubscription {
+		_, err = s.makeRequest(kv.Request{
+			CmdName: kv.CmdSubscribePrefix,
+			Data: map[string]interface{}{
+				"prefix": prefix,
+			},
+		})
+	}
+
+	return chn, err
+}
+
+func (s *Client) UnsubscribePrefix(prefix string, chn chan KeyValuePair) error {
+	data, ok := s.prefixsubs.Get(prefix)
+	if !ok {
+		return nil
+	}
+	chans := data.([]chan KeyValuePair)
+
+	found := false
+	for idx, sub := range chans {
+		if sub == chn {
+			chans = append(chans[:idx], chans[idx+1:]...)
+			s.prefixsubs.Set(prefix, chans)
+			found = true
+		}
+	}
+
+	if !found {
+		return ErrSubscriptionNotFound
+	}
+
+	// If we removed all subscribers, ask server to not push updates to us anymore
+	if len(chans) < 1 {
+		_, err := s.makeRequest(kv.Request{
+			CmdName: kv.CmdUnsubscribePrefix,
+			Data: map[string]interface{}{
+				"prefix": prefix,
 			},
 		})
 		return err
