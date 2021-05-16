@@ -39,13 +39,12 @@ func TestCommands(t *testing.T) {
 			t.Fatalf("returned value is different than expected, expected=%s got=%s", "test1234", val)
 		}
 	})
-
 	type RandomStruct struct {
 		Value int64
 		Other string
 	}
 	t.Run("SetJSON", func(t *testing.T) {
-		if err := client.SetJSON("test", RandomStruct{
+		if err := client.SetJSON("testjson", RandomStruct{
 			Value: 1234,
 			Other: "wow!",
 		}); err != nil {
@@ -54,11 +53,80 @@ func TestCommands(t *testing.T) {
 	})
 	t.Run("GetJSON", func(t *testing.T) {
 		var rnd RandomStruct
-		if err := client.GetJSON("test", &rnd); err != nil {
+		if err := client.GetJSON("testjson", &rnd); err != nil {
 			t.Fatal("error getting JSON key", err.Error())
 		}
 		if rnd.Value != 1234 || rnd.Other != "wow!" {
 			t.Fatal("deserialized JSON has different values than expected")
+		}
+	})
+
+	t.Run("SetKeys", func(t *testing.T) {
+		if err := client.SetKeys(map[string]string{
+			"multi1": "value1",
+			"multi2": "1234",
+		}); err != nil {
+			t.Fatal("error setting multiple keys", err.Error())
+		}
+	})
+
+	t.Run("SetJSONs", func(t *testing.T) {
+		if err := client.SetJSONs(map[string]interface{}{
+			"multijson1": RandomStruct{
+				Value: 1234,
+				Other: "wow!",
+			},
+			"multijson2": RandomStruct{
+				Value: 9999,
+				Other: "AAAAA",
+			},
+		}); err != nil {
+			t.Fatal("error setting multiple keys to JSON values", err.Error())
+		}
+	})
+
+	t.Run("GetKeys", func(t *testing.T) {
+		val, err := client.GetKeys([]string{"test", "multi2"})
+		if err != nil {
+			t.Fatal("error getting key list", err.Error())
+		}
+		testKey, ok := val["test"]
+		if !ok {
+			t.Fatal("expected response to contain test key but it doesn't")
+		}
+		if testKey != "test1234" {
+			t.Fatal("test key has different value than expected")
+		}
+		testKey, ok = val["multi2"]
+		if !ok {
+			t.Fatal("expected response to contain multi2 key but it doesn't")
+		}
+		if testKey != "1234" {
+			t.Fatal("multi2 key has different value than expected")
+		}
+	})
+
+	t.Run("GetByPrefix", func(t *testing.T) {
+		val, err := client.GetByPrefix("multi")
+		if err != nil {
+			t.Fatal("error getting keys by prefix", err.Error())
+		}
+		if len(val) < 4 {
+			t.Fatal("returned less keys than expected")
+		}
+		testKey, ok := val["multi1"]
+		if !ok {
+			t.Fatal("expected response to contain multi1 key but it doesn't")
+		}
+		if testKey != "value1" {
+			t.Fatal("multi1 key has different value than expected")
+		}
+		testKey, ok = val["multi2"]
+		if !ok {
+			t.Fatal("expected response to contain multi2 key but it doesn't")
+		}
+		if testKey != "1234" {
+			t.Fatal("multi2 key has different value than expected")
 		}
 	})
 

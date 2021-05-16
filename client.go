@@ -166,6 +166,44 @@ func (s *Client) GetKey(key string) (string, error) {
 	return resp.Data.(string), nil
 }
 
+func (s *Client) GetKeys(keys []string) (map[string]string, error) {
+	resp, err := s.makeRequest(kv.Request{
+		CmdName: kv.CmdReadBulk,
+		Data: map[string]interface{}{
+			"keys": keys,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	vals := resp.Data.(map[string]interface{})
+	toReturn := make(map[string]string)
+	for k, v := range vals {
+		toReturn[k] = v.(string)
+	}
+	return toReturn, nil
+}
+
+func (s *Client) GetByPrefix(prefix string) (map[string]string, error) {
+	resp, err := s.makeRequest(kv.Request{
+		CmdName: kv.CmdReadPrefix,
+		Data: map[string]interface{}{
+			"prefix": prefix,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	vals := resp.Data.(map[string]interface{})
+	toReturn := make(map[string]string)
+	for k, v := range vals {
+		toReturn[k] = v.(string)
+	}
+	return toReturn, nil
+}
+
 func (s *Client) GetJSON(key string, dst interface{}) error {
 	resp, err := s.makeRequest(kv.Request{
 		CmdName: kv.CmdReadKey,
@@ -196,6 +234,21 @@ func (s *Client) SetKey(key string, data string) error {
 	return err
 }
 
+func (s *Client) SetKeys(data map[string]string) error {
+	// This is so dumb
+	toSet := make(map[string]interface{})
+	for k, v := range data {
+		toSet[k] = v
+	}
+
+	_, err := s.makeRequest(kv.Request{
+		CmdName: kv.CmdWriteBulk,
+		Data:    toSet,
+	})
+
+	return err
+}
+
 func (s *Client) SetJSON(key string, data interface{}) error {
 	serialized, err := jsoniter.ConfigFastest.MarshalToString(data)
 	if err != nil {
@@ -208,6 +261,24 @@ func (s *Client) SetJSON(key string, data interface{}) error {
 			"key":  key,
 			"data": serialized,
 		},
+	})
+
+	return err
+}
+
+func (s *Client) SetJSONs(data map[string]interface{}) error {
+	toSet := make(map[string]interface{})
+	for k, v := range data {
+		serialized, err := jsoniter.ConfigFastest.MarshalToString(v)
+		if err != nil {
+			return err
+		}
+		toSet[k] = serialized
+	}
+
+	_, err := s.makeRequest(kv.Request{
+		CmdName: kv.CmdWriteBulk,
+		Data:    toSet,
 	})
 
 	return err
