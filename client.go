@@ -14,7 +14,7 @@ import (
 	cmap "github.com/orcaman/concurrent-map"
 	"github.com/sirupsen/logrus"
 
-	kv "github.com/strimertul/kilovolt/v4"
+	kv "github.com/strimertul/kilovolt/v5"
 )
 
 var (
@@ -402,6 +402,27 @@ func (s *Client) UnsubscribePrefix(prefix string, chn chan KeyValuePair) error {
 	}
 
 	return nil
+}
+
+func (s *Client) ListKeys(prefix string) ([]string, error) {
+	resp, err := s.makeRequest(kv.Request{
+		CmdName: kv.CmdListKeys,
+		Data: map[string]interface{}{
+			"prefix": prefix,
+		},
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	var keys []string
+	for _, k := range resp.Data.([]interface{}) {
+		if key, ok := k.(string); ok {
+			keys = append(keys, key)
+		}
+	}
+	return keys, nil
 }
 
 func (s *Client) makeRequest(request kv.Request) (kv.Response, error) {

@@ -9,7 +9,7 @@ import (
 	"github.com/dgraph-io/badger/v3"
 	"github.com/sirupsen/logrus"
 
-	kv "github.com/strimertul/kilovolt/v4"
+	kv "github.com/strimertul/kilovolt/v5"
 )
 
 func TestCommands(t *testing.T) {
@@ -229,6 +229,41 @@ func TestPrefixSubscription(t *testing.T) {
 
 	if err = client.UnsubscribePrefix("sub", chn); err != nil {
 		t.Fatal("error unsubscribing from prefix", err.Error())
+	}
+}
+
+func TestKeyList(t *testing.T) {
+	log := logrus.New()
+	log.Level = logrus.TraceLevel
+
+	server, _ := createInMemoryKV(t, log)
+
+	client, err := NewClient(server.URL, ClientOptions{
+		Logger: log,
+	})
+	if err != nil {
+		t.Fatal("error creating kv client", err.Error())
+	}
+
+	if err = client.SetKey("test", "testvalue1234"); err != nil {
+		t.Fatal("error modifying key", err.Error())
+	}
+	if err = client.SetKey("multi1", "value1"); err != nil {
+		t.Fatal("error modifying key", err.Error())
+	}
+	if err = client.SetKey("multi2", "1234"); err != nil {
+		t.Fatal("error modifying key", err.Error())
+	}
+
+	list, err := client.ListKeys("multi")
+	if err != nil {
+		t.Fatal("error getting key list", err.Error())
+	}
+	if len(list) != 2 {
+		t.Fatal("wrong number of keys returned", len(list))
+	}
+	if list[0] != "multi1" || list[1] != "multi2" {
+		t.Fatal("wrong keys returned", list)
 	}
 }
 
