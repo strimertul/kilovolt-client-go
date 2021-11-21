@@ -23,6 +23,7 @@ func main() {
 	command := flag.String("command", "", "Command to run (supported: kget/kset)")
 	key := flag.String("key", "", "Key to run command on")
 	data := flag.String("data", "", "Optional data argument for commands that require it")
+	password := flag.String("password", "", "Optional password")
 	flag.Parse()
 
 	if *command == "" {
@@ -37,7 +38,7 @@ func main() {
 		headers.Add("Authorization", "Bearer "+*auth)
 	}
 
-	client, err := kvclient.NewClient(*endpoint, kvclient.ClientOptions{Headers: headers})
+	client, err := kvclient.NewClient(*endpoint, kvclient.ClientOptions{Headers: headers, Password: *password})
 	check(err)
 
 	switch strings.ToLower(*command) {
