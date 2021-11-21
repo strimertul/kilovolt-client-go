@@ -90,10 +90,8 @@ github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXf
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
 github.com/stretchr/testify v1.4.0 h1:2E4SXV/wtOkTonXsotYi4li6zVWxYlZuYNCXe9XRJyk=
 github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
-github.com/strimertul/kilovolt/v4 v4.0.1 h1:81isohdSixVURO2+dZKKZBPw97HJmNN4/BXn6ADFoWM=
-github.com/strimertul/kilovolt/v4 v4.0.1/go.mod h1:AO2ZFQtSB+AcjCw0RTkXjbM6XBAjhsXsrRq10BX95kw=
-github.com/strimertul/kilovolt/v5 v5.0.1 h1:LHAVqb3SrXiew3loTpYuPdz16Nl8/aTReBYj56xwF7I=
-github.com/strimertul/kilovolt/v5 v5.0.1/go.mod h1:HxfnnlEGhY6p+Im9U7pso07HEV+cXEsJH7uFTM7c6uE=
+github.com/strimertul/kilovolt/v6 v6.0.0 h1:0vkg3Vc0ploLuCkoF9v30vMPrmTryf26socXoklkYLo=
+github.com/strimertul/kilovolt/v6 v6.0.0/go.mod h1:O5Rwg8o66omRP4O3qInBKreW9jILZz2MEq4MuotzAXw=
 github.com/twitchyliquid64/golang-asm v0.15.0/go.mod h1:a1lVb/DtPvCB8fslRZhAngC2+aY1QWCk3Cedj/Gdt08=
 github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8/go.mod h1:VFNgLljTbGfSG7qAOspJ7OScBnGdDN/yBr0sguwnwf0=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=

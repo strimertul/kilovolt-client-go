@@ -9,7 +9,7 @@ import (
 	"github.com/dgraph-io/badger/v3"
 	"github.com/sirupsen/logrus"
 
-	kv "github.com/strimertul/kilovolt/v5"
+	kv "github.com/strimertul/kilovolt/v6"
 )
 
 func TestCommands(t *testing.T) {
@@ -267,6 +267,35 @@ func TestKeyList(t *testing.T) {
 	}
 }
 
+func TestAuthentication(t *testing.T) {
+	log := logrus.New()
+	log.Level = logrus.TraceLevel
+
+	// Create hub with password
+	const password = "testPassword"
+	server, hub := createInMemoryKV(t, log)
+	hub.SetOptions(kv.HubOptions{
+		Password: password,
+	})
+
+	// Create client with password option
+	client, err := NewClient(server.URL, ClientOptions{
+		Logger:   log,
+		Password: password,
+	})
+	if err != nil {
+		t.Fatal("error creating kv client", err.Error())
+	}
+
+	// Couple test operations to test if auth actually went correctly
+	if err = client.SetKey("test", "testvalue1234"); err != nil {
+		t.Fatal("error modifying key", err.Error())
+	}
+	if _, err = client.GetKey("test"); err != nil {
+		t.Fatal("error getting key")
+	}
+}
+
 func createInMemoryKV(t *testing.T, log logrus.FieldLogger) (*httptest.Server, *kv.Hub) {
 	// Open in-memory DB
 	options := badger.DefaultOptions("").WithInMemory(true).WithLogger(log)
@@ -276,7 +305,7 @@ func createInMemoryKV(t *testing.T, log logrus.FieldLogger) (*httptest.Server, *
 	}
 
 	// Create hub with in-mem DB
-	hub, err := kv.NewHub(db, log)
+	hub, err := kv.NewHub(db, kv.HubOptions{}, log)
 	if err != nil {
 		t.Fatal("hub initialization failed", err.Error())
 	}

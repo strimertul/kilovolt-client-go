@@ -8,6 +8,7 @@ Depending on what version of kilovolt you need to interface with, you'll need to
 
 | Protocol | Go URL                                               |
 | -------- | ---------------------------------------------------- |
-| `v3`     | `go get github.com/strimertul/kilovolt-client-go`    |
-| `v4`     | `go get github.com/strimertul/kilovolt-client-go/v2` |
+| `v6`     | `go get github.com/strimertul/kilovolt-client-go/v6` |
 | `v5`     | `go get github.com/strimertul/kilovolt-client-go/v3` |
+| `v4`     | `go get github.com/strimertul/kilovolt-client-go/v2` |
+| `v3`     | `go get github.com/strimertul/kilovolt-client-go`    |

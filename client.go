@@ -1,6 +1,9 @@
 package kvclient
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -14,11 +17,10 @@ import (
 	cmap "github.com/orcaman/concurrent-map"
 	"github.com/sirupsen/logrus"
 
-	kv "github.com/strimertul/kilovolt/v5"
+	kv "github.com/strimertul/kilovolt/v6"
 )
 
 var (
-	ErrNotAuthenticated     = errors.New("not authenticated")
 	ErrSubscriptionNotFound = errors.New("subscription not found")
 	ErrEmptyKey             = errors.New("key empty or unset")
 )
@@ -41,8 +43,9 @@ type Client struct {
 }
 
 type ClientOptions struct {
-	Headers http.Header
-	Logger  logrus.FieldLogger
+	Headers  http.Header
+	Password string
+	Logger   logrus.FieldLogger
 }
 
 func NewClient(endpoint string, options ClientOptions) (*Client, error) {
@@ -62,14 +65,60 @@ func NewClient(endpoint string, options ClientOptions) (*Client, error) {
 	}
 
 	err := client.ConnectToWebsocket()
+	if err != nil {
+		return nil, err
+	}
 
-	return client, err
+	if options.Password != "" {
+		err = client.Authenticate(options.Password)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return client, nil
 }
 
-func (s *Client) Close() {
-	if s.ws != nil {
-		s.ws.Close()
+func (s *Client) Authenticate(password string) error {
+	res, err := s.makeRequest(kv.Request{
+		CmdName: kv.CmdAuthRequest,
+	})
+	if err != nil {
+		return err
 	}
+
+	data := res.Data.(map[string]interface{})
+
+	// Decode challenge
+	challengeBytes, err := base64.StdEncoding.DecodeString(data["challenge"].(string))
+	if err != nil {
+		return fmt.Errorf("failed to decode challenge: %w", err)
+	}
+	saltBytes, err := base64.StdEncoding.DecodeString(data["salt"].(string))
+	if err != nil {
+		return fmt.Errorf("failed to decode salt: %w", err)
+	}
+
+	// Create hash from password and challenge
+	hash := hmac.New(sha256.New, append([]byte(password), saltBytes...))
+	hash.Write(challengeBytes)
+	hashBytes := hash.Sum(nil)
+
+	// Send auth challenge
+	_, err = s.makeRequest(kv.Request{
+		CmdName: kv.CmdAuthChallenge,
+		Data: map[string]interface{}{
+			"hash": base64.StdEncoding.EncodeToString(hashBytes),
+		},
+	})
+	return err
+}
+
+func (s *Client) Close() error {
+	if s.ws != nil {
+		return s.ws.Close()
+	}
+	return nil
 }
 
 func (s *Client) ConnectToWebsocket() error {
@@ -136,9 +185,9 @@ func (s *Client) ConnectToWebsocket() error {
 							}
 						}
 						// Deliver to prefix subscritpions
-						for kv := range s.prefixsubs.IterBuffered() {
-							if strings.HasPrefix(push.Key, kv.Key) {
-								for _, chann := range kv.Val.([]chan KeyValuePair) {
+						for pair := range s.prefixsubs.IterBuffered() {
+							if strings.HasPrefix(push.Key, pair.Key) {
+								for _, chann := range pair.Val.([]chan KeyValuePair) {
 									chann <- KeyValuePair{push.Key, push.NewValue}
 								}
 							}

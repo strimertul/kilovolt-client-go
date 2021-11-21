@@ -1,4 +1,4 @@
-module github.com/strimertul/kilovolt-client-go/v3
+module github.com/strimertul/kilovolt-client-go/v6
 
 go 1.16
 
@@ -8,5 +8,5 @@ require (
 	github.com/json-iterator/go v1.1.11
 	github.com/orcaman/concurrent-map v0.0.0-20210501183033-44dafcb38ecc
 	github.com/sirupsen/logrus v1.8.1
-	github.com/strimertul/kilovolt/v5 v5.0.1
+	github.com/strimertul/kilovolt/v6 v6.0.0
 )
