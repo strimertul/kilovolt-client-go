@@ -1,4 +1,4 @@
-module github.com/strimertul/kilovolt-client-go/v6
+module github.com/strimertul/kilovolt-client-go/v7
 
 go 1.16
 
