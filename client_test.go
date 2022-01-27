@@ -6,16 +6,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dgraph-io/badger/v3"
-	"github.com/sirupsen/logrus"
+	"github.com/strimertul/kilovolt/v7/drivers/mapkv"
 
-	kv "github.com/strimertul/kilovolt/v6"
+	"go.uber.org/zap"
+
+	kv "github.com/strimertul/kilovolt/v7"
 )
 
 func TestCommands(t *testing.T) {
-	log := logrus.New()
-	log.Level = logrus.TraceLevel
-
+	log, _ := zap.NewDevelopment()
 	server, _ := createInMemoryKV(t, log)
 
 	client, err := NewClient(server.URL, ClientOptions{
@@ -161,8 +160,7 @@ func TestCommands(t *testing.T) {
 }
 
 func TestKeySubscription(t *testing.T) {
-	log := logrus.New()
-	log.Level = logrus.TraceLevel
+	log, _ := zap.NewDevelopment()
 
 	server, _ := createInMemoryKV(t, log)
 
@@ -197,9 +195,7 @@ func TestKeySubscription(t *testing.T) {
 }
 
 func TestPrefixSubscription(t *testing.T) {
-	log := logrus.New()
-	log.Level = logrus.TraceLevel
-
+	log, _ := zap.NewDevelopment()
 	server, _ := createInMemoryKV(t, log)
 
 	client, err := NewClient(server.URL, ClientOptions{
@@ -233,9 +229,7 @@ func TestPrefixSubscription(t *testing.T) {
 }
 
 func TestKeyList(t *testing.T) {
-	log := logrus.New()
-	log.Level = logrus.TraceLevel
-
+	log, _ := zap.NewDevelopment()
 	server, _ := createInMemoryKV(t, log)
 
 	client, err := NewClient(server.URL, ClientOptions{
@@ -268,8 +262,7 @@ func TestKeyList(t *testing.T) {
 }
 
 func TestAuthentication(t *testing.T) {
-	log := logrus.New()
-	log.Level = logrus.TraceLevel
+	log, _ := zap.NewDevelopment()
 
 	// Create hub with password
 	const password = "testPassword"
@@ -296,16 +289,9 @@ func TestAuthentication(t *testing.T) {
 	}
 }
 
-func createInMemoryKV(t *testing.T, log logrus.FieldLogger) (*httptest.Server, *kv.Hub) {
-	// Open in-memory DB
-	options := badger.DefaultOptions("").WithInMemory(true).WithLogger(log)
-	db, err := badger.Open(options)
-	if err != nil {
-		t.Fatal("db initialization failed", err.Error())
-	}
-
+func createInMemoryKV(t *testing.T, log *zap.Logger) (*httptest.Server, *kv.Hub) {
 	// Create hub with in-mem DB
-	hub, err := kv.NewHub(db, kv.HubOptions{}, log)
+	hub, err := kv.NewHub(mapkv.MakeBackend(), kv.HubOptions{}, log)
 	if err != nil {
 		t.Fatal("hub initialization failed", err.Error())
 	}

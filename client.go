@@ -12,12 +12,12 @@ import (
 	"strings"
 	"sync"
 
+	"go.uber.org/zap"
+
 	"github.com/gorilla/websocket"
 	jsoniter "github.com/json-iterator/go"
 	cmap "github.com/orcaman/concurrent-map"
-	"github.com/sirupsen/logrus"
-
-	kv "github.com/strimertul/kilovolt/v6"
+	kv "github.com/strimertul/kilovolt/v7"
 )
 
 var (
@@ -32,7 +32,7 @@ type KeyValuePair struct {
 
 type Client struct {
 	Endpoint string
-	Logger   logrus.FieldLogger
+	Logger   *zap.Logger
 
 	headers    http.Header
 	ws         *websocket.Conn
@@ -45,12 +45,12 @@ type Client struct {
 type ClientOptions struct {
 	Headers  http.Header
 	Password string
-	Logger   logrus.FieldLogger
+	Logger   *zap.Logger
 }
 
 func NewClient(endpoint string, options ClientOptions) (*Client, error) {
 	if options.Logger == nil {
-		options.Logger = logrus.New()
+		options.Logger, _ = zap.NewProduction()
 	}
 
 	client := &Client{
@@ -142,7 +142,7 @@ func (s *Client) ConnectToWebsocket() error {
 		for {
 			mtype, message, err := s.ws.ReadMessage()
 			if err != nil {
-				s.Logger.WithError(err).Error("websocket read error")
+				s.Logger.Error("websocket read error", zap.Error(err))
 				return
 			}
 			if mtype != websocket.TextMessage {
@@ -154,18 +154,18 @@ func (s *Client) ConnectToWebsocket() error {
 				var response kv.Response
 				err = jsoniter.ConfigFastest.UnmarshalFromString(msg, &response)
 				if err != nil {
-					s.Logger.WithError(err).Error("websocket deserialize error")
+					s.Logger.Error("websocket deserialize error", zap.Error(err))
 					return
 				}
 				// Check message
 				if response.RequestID != "" {
 					// We have a request ID, send byte chunk over to channel
 					if chn, ok := s.requests.Get(response.RequestID); ok {
-						s.Logger.WithField("rid", response.RequestID).Trace("recv response")
+						s.Logger.Debug("recv response", zap.String("rid", response.RequestID))
 						chn.(chan string) <- msg
 						s.requests.Remove(response.RequestID)
 					} else {
-						s.Logger.WithField("rid", response.RequestID).Error("received response for unknown RID")
+						s.Logger.Error("received response for unknown RID", zap.String("rid", response.RequestID))
 					}
 				} else {
 					// Might be a push
@@ -173,9 +173,9 @@ func (s *Client) ConnectToWebsocket() error {
 					case "push":
 						var push kv.Push
 						err = jsoniter.ConfigFastest.UnmarshalFromString(msg, &push)
-						s.Logger.WithField("key", push.Key).Trace("recv push")
+						s.Logger.Debug("recv push", zap.String("key", push.Key))
 						if err != nil {
-							s.Logger.WithError(err).Error("websocket deserialize error")
+							s.Logger.Error("websocket deserialize error", zap.Error(err))
 							continue
 						}
 						// Deliver to key subscriptions
@@ -489,10 +489,7 @@ func (s *Client) makeRequest(request kv.Request) (kv.Response, error) {
 
 	request.RequestID = rid
 	err := s.send(request)
-	s.Logger.WithFields(logrus.Fields{
-		"rid": request.RequestID,
-		"cmd": request.CmdName,
-	}).Trace("sent request")
+	s.Logger.Debug("sent request", zap.String("rid", request.RequestID), zap.String("cmd", request.CmdName))
 	if err != nil {
 		return kv.Response{}, err
 	}
