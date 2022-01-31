@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	kvclient "github.com/strimertul/kilovolt-client-go/v6"
+	kvclient "github.com/strimertul/kilovolt-client-go/v7"
 )
 
 func check(err error) {

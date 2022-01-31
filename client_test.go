@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/strimertul/kilovolt/v7/drivers/mapkv"
-
 	"go.uber.org/zap"
 
 	kv "github.com/strimertul/kilovolt/v7"
@@ -291,7 +289,7 @@ func TestAuthentication(t *testing.T) {
 
 func createInMemoryKV(t *testing.T, log *zap.Logger) (*httptest.Server, *kv.Hub) {
 	// Create hub with in-mem DB
-	hub, err := kv.NewHub(mapkv.MakeBackend(), kv.HubOptions{}, log)
+	hub, err := kv.NewHub(kv.MakeBackend(), kv.HubOptions{}, log)
 	if err != nil {
 		t.Fatal("hub initialization failed", err.Error())
 	}
