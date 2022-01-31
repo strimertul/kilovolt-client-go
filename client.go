@@ -17,7 +17,7 @@ import (
 	"github.com/gorilla/websocket"
 	jsoniter "github.com/json-iterator/go"
 	cmap "github.com/orcaman/concurrent-map"
-	kv "github.com/strimertul/kilovolt/v7"
+	kv "github.com/strimertul/kilovolt/v8"
 )
 
 var (

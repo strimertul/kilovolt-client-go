@@ -8,7 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
-	kv "github.com/strimertul/kilovolt/v7"
+	kv "github.com/strimertul/kilovolt/v8"
 )
 
 func TestCommands(t *testing.T) {
