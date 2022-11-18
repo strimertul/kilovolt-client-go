@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	kvclient "github.com/strimertul/kilovolt-client-go/v8"
+	kvclient "github.com/strimertul/kilovolt-client-go/v9"
 )
 
 func check(err error) {
@@ -51,5 +51,4 @@ func main() {
 	default:
 		check(fmt.Errorf("unknown command \"%s\"", *command))
 	}
-
 }

@@ -12,12 +12,11 @@ import (
 	"strings"
 	"sync"
 
-	"go.uber.org/zap"
-
 	"github.com/gorilla/websocket"
 	jsoniter "github.com/json-iterator/go"
 	cmap "github.com/orcaman/concurrent-map"
-	kv "github.com/strimertul/kilovolt/v8"
+	kv "github.com/strimertul/kilovolt/v9"
+	"go.uber.org/zap"
 )
 
 var (
@@ -192,7 +191,6 @@ func (s *Client) ConnectToWebsocket() error {
 								}
 							}
 						}
-
 					}
 				}
 			}
@@ -460,7 +458,6 @@ func (s *Client) ListKeys(prefix string) ([]string, error) {
 			"prefix": prefix,
 		},
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -472,6 +469,16 @@ func (s *Client) ListKeys(prefix string) ([]string, error) {
 		}
 	}
 	return keys, nil
+}
+
+func (s *Client) InternalClientID() (int64, error) {
+	resp, err := s.makeRequest(kv.Request{
+		CmdName: kv.CmdInternalClientID,
+	})
+	if err != nil {
+		return -1, err
+	}
+	return resp.Data.(int64), nil
 }
 
 func (s *Client) makeRequest(request kv.Request) (kv.Response, error) {
