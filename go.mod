@@ -1,11 +1,17 @@
-module github.com/strimertul/kilovolt-client-go/v9
+module github.com/strimertul/kilovolt-client-go/v11
 
-go 1.16
+go 1.20
 
 require (
-	github.com/gorilla/websocket v1.5.0
 	github.com/json-iterator/go v1.1.12
 	github.com/orcaman/concurrent-map v1.0.0
-	github.com/strimertul/kilovolt/v9 v9.0.0
-	go.uber.org/zap v1.23.0
+	github.com/strimertul/kilovolt/v11 v11.0.0
+	go.uber.org/zap v1.26.0
+	nhooyr.io/websocket v1.8.10
+)
+
+require (
+	github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 // indirect
+	github.com/modern-go/reflect2 v1.0.2 // indirect
+	go.uber.org/multierr v1.10.0 // indirect
 )

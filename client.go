@@ -1,6 +1,7 @@
 package kvclient
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -11,12 +12,13 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
-	"github.com/gorilla/websocket"
 	jsoniter "github.com/json-iterator/go"
 	cmap "github.com/orcaman/concurrent-map"
-	kv "github.com/strimertul/kilovolt/v9"
+	kv "github.com/strimertul/kilovolt/v11"
 	"go.uber.org/zap"
+	"nhooyr.io/websocket"
 )
 
 var (
@@ -115,9 +117,20 @@ func (s *Client) Authenticate(password string) error {
 
 func (s *Client) Close() error {
 	if s.ws != nil {
-		return s.ws.Close()
+		return s.ws.CloseNow()
 	}
 	return nil
+}
+
+var (
+	newline = []byte{'\n'}
+	space   = []byte{' '}
+)
+
+func (s *Client) readNext() (websocket.MessageType, []byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	return s.ws.Read(ctx)
 }
 
 func (s *Client) ConnectToWebsocket() error {
@@ -131,7 +144,12 @@ func (s *Client) ConnectToWebsocket() error {
 		uri.Scheme = "ws"
 	}
 
-	s.ws, _, err = websocket.DefaultDialer.Dial(uri.String(), s.headers)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	s.ws, _, err = websocket.Dial(ctx, uri.String(), &websocket.DialOptions{
+		HTTPHeader: s.headers,
+	})
 	if err != nil {
 		return err
 	}
@@ -139,12 +157,12 @@ func (s *Client) ConnectToWebsocket() error {
 	go func() {
 		s.Logger.Debug("connected to ws, reading")
 		for {
-			mtype, message, err := s.ws.ReadMessage()
+			mtype, message, err := s.readNext()
 			if err != nil {
 				s.Logger.Error("websocket read error", zap.Error(err))
 				return
 			}
-			if mtype != websocket.TextMessage {
+			if mtype != websocket.MessageText {
 				continue
 			}
 
@@ -522,7 +540,11 @@ func (s *Client) makeRequest(request kv.Request) (kv.Response, error) {
 func (s *Client) send(v interface{}) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	w, err := s.ws.NextWriter(websocket.TextMessage)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	w, err := s.ws.Writer(ctx, websocket.MessageText)
 	if err != nil {
 		return err
 	}
